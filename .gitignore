@@ -1,0 +1,8 @@
+*.class
+*.log
+.idea/
+.vscode/
+local/
+test-output/
+*.zip
+*.jar
