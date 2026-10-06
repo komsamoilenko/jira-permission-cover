@@ -14,16 +14,16 @@ The repository is a new, AI-assisted educational implementation of this approach
 
 ## Status and compatibility
 
-The [validation record](VALIDATION.md) distinguishes executed tests, independent model reviews and unverified integration behaviour.
+The [validation record](VALIDATION.md) distinguishes offline tests, the reported live check, independent model reviews and remaining limits.
 
-- **Experimental.** The current public version has not been run on a live Jira or ScriptRunner instance.
+- **Experimental; live-checked on one configuration.** The 2026-10-06 work-laptop report records a successful check on non-production Jira Data Center 9.12.8 + ScriptRunner 8.18.0 (Groovy 4.0.8, Java 17.0.7). It applies to the assembled file with SHA-256 `73EB56261BDD45E2C374F76724183969FDE22C6150D9F6805C36B6CD4BFE67A7`, with only the permission key and acknowledgement configured locally. Other live configurations are untested; a changed script needs a new live check. See [VALIDATION.md](VALIDATION.md) for the results and the independent comparison's limits.
 - Designed against Jira Data Center 9.x APIs; official references below identify the precise documentation versions reviewed.
-- Offline behaviour tests use Groovy 3.0.25 / Java 17. They exercise the actual implementation and controlled service doubles. They do not validate Jira's caches, directories, licensing configuration or installed apps.
+- Offline behaviour tests run on Groovy 3.0.25 and 4.0.8 with Java 17. They exercise the actual implementation and controlled service doubles. They do not validate Jira's caches, directories, licensing configuration or installed apps.
 - Not for Jira Cloud, project permissions, issue-security levels, admin grants or application-access management.
 
 ## Use
 
-1. Read the scope and limitations below. Review the script before executing it. Start on a representative non-production instance; this version is not live-validated.
+1. Read the scope and limitations below. Review the script before executing it. Start on a representative non-production instance; this version has been live-checked only on the configuration listed above.
 2. Open [`dist/plan-permission-cover.groovy`](dist/plan-permission-cover.groovy), the assembled single-file script.
 3. In your **local copy only**, replace `REPLACE_WITH_APP_PERMISSION_KEY` with the exact key of one installed, non-administrative app's global permission. Confirm the app uses ordinary Jira group-grant semantics. Do not commit that configured copy.
 4. Set `APP_PERMISSION_CONFIRMED = true` only after that review. Built-in Jira permission keys are blocked separately.
@@ -39,9 +39,10 @@ You do not need to install the two source files into a ScriptRunner script root.
 - Every granted group and returned user identity resolves. Null/error results are not silently converted to empty groups.
 - The target population consists of active `ApplicationUser`s for whom `hasAnyRole` is true and `hasPermission` is true. `hasAnyRole` means an application role backed by a licence, potentially with exceeded limits; it is not a login or spare-seat check.
 - The union of **all** granted-group members in that scope equals the effective holder set. A mismatch blocks analysis as unsupported/inconsistent data.
-- Two materialised observations agree on known/scoped user keys, effective holders and each group's scoped membership. A changed observation blocks the result.
+- Two materialised observations agree on known/scoped user keys, effective holders and each group's scoped membership. A changed observation blocks the result. An observed addition or removal of any known user key, including an out-of-scope account, produces `OBSERVATIONS_CHANGED`.
 - The selected groups cover the target exactly; selection and tie-breaking are deterministic.
 - `MAX_MEMBERSHIP_CHECKS` bounds the aggregate memberships materialised per observation and the greedy calculation's membership-check budget (default 2,000,000). Exceeding either budget blocks the result without returning a partial plan. This is an operation cap, not a wall-clock timeout on Jira API calls.
+- `MAX_USERS` counts all users returned by `getAllApplicationUsers`, before filtering by active status or application role, not just the scoped holders.
 
 Identity comparison uses stable Jira user keys. No usernames or user keys appear in normal output. Internally collected snapshots remain in memory for the duration of the console run; the script itself does not save or transmit them. The host application may retain console execution/output history.
 
@@ -56,9 +57,13 @@ Identity comparison uses stable Jira user keys. No usernames or user keys appear
 
 `selectedGroups` is the combination found, not a proven minimum. `unselectedGroups` means omitted from that combination, **not safe to delete**. When redacted, `Group 1`, `Group 2`, etc. refer to the sorted group list within this run; labels can change between runs.
 
+`selectedGroups` lists groups in greedy selection order, not by label number.
+
 `lostCount` and `gainedCount` describe set differences within the scope. They are not predictions of every effect a real permission change would have.
 
 Common blocking reasons include `CONFIGURE_PERMISSION_KEY`, `APP_SCOPE_NOT_CONFIRMED`, `BUILT_IN_PERMISSION`, `UNKNOWN_PERMISSION`, `ANONYMOUS_ACCESS`, `ANONYMOUS_OR_EMPTY_GRANT`, `UNRESOLVED_GROUP`, `UNRESOLVED_USER`, `GRANT_READS_DISAGREE`, `OBSERVATIONS_CHANGED`, `USER_LIMIT`, `GROUP_LIMIT`, `MEMBERSHIP_LIMIT`, `TOTAL_MEMBERSHIP_LIMIT`, `WORK_BUDGET`, `INVALID_BOOLEAN_RESULT` and `READ_OR_API_ERROR`. For an API error, diagnose locally; raw exception messages are deliberately not exposed because they can contain private data.
+
+Unexpected Java `Exception`s caught inside `PermissionCover.run` become `READ_OR_API_ERROR`. JVM `Error`s (for example, `NoClassDefFoundError`) and failures before that protected block are not covered by this redaction and may expose diagnostic text in the console. Review all output before sharing it.
 
 ## What an exact result does NOT establish
 
@@ -85,7 +90,7 @@ Run `groovy examples/demo.groovy` from the repository root to calculate this exa
 
 ## Develop and test
 
-Use Groovy 3.0.25 with Java 17, then run from the repository root:
+With Java 17, run the following from the repository root under both Groovy 3.0.25 and 4.0.8:
 
 ```text
 groovy tests/run.groovy
@@ -97,6 +102,8 @@ git diff --exit-code -- dist/plan-permission-cover.groovy
 The core has no external dependencies beyond Groovy/JDK. Tests cover exact coverage, overlap, deterministic ties, non-minimal greedy results, absent/extra holders, empty scope, null input, redaction, limits, an adversarial high-overlap computation budget, invalid boolean results and fail-closed reads. An additional test compiles and executes the assembled console file against small API doubles; that is still not a live Jira integration test.
 
 Edit `src/PermissionCover.groovy` or `scripts/console-entrypoint.groovy`, not the generated `dist` copy. Rebuild and rerun the full suite. The build task writes only the local distribution file and never contacts Jira.
+
+Changes to the generated script require a new live check before claiming the live validation applies to that version.
 
 ## References
 
