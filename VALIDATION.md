@@ -32,7 +32,7 @@ Model review is not a security certification, a human approval of changes to Jir
 
 ## Automated checks
 
-The GitHub Actions workflow is configured to run the offline tests on Groovy 3.0.25 and 4.0.8 with Java 17. Each matrix entry rebuilds the distribution, rejects generated-file differences, checks the assembled entry point and runs the demo. The corresponding test/build commands passed locally on both versions as described above; the workflow has not yet run on GitHub Actions. Consult the Actions results for remote CI evidence after publication.
+The GitHub Actions workflow runs the offline tests on Groovy 3.0.25 and 4.0.8 with Java 17. Each matrix entry rebuilds the distribution, rejects generated-file differences, checks the assembled entry point and runs the demo. Both matrix entries passed remotely on 2026-10-06 for commit `de2365b3ddf1eff272452496e7c4603fabc7c262`: [Actions run 37450622827](https://github.com/komsamoilenko/jira-permission-cover/actions/runs/37450622827). The corresponding commands also passed locally on both versions as described above. Consult Actions for the result on any later commit; remote offline tests are not live Jira validation.
 
 Official Actions are pinned by commit SHA. Groovy core downloads are pinned by version and SHA-256:
 
